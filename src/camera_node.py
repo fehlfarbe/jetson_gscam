@@ -153,7 +153,9 @@ class JetsonCameraNode:
         if not self._camera_info.isCalibrated():
             rospy.logwarn_once("Camera is not calibrated!")
             return
-        self._pub_camera_info.publish(self._camera_info.getCameraInfo())
+        cam_info = self._camera_info.getCameraInfo()
+        cam_info.header.frame_id = self._camera_name
+        self._pub_camera_info.publish(cam_info)
 
     def _on_playmer_msg(self, bus, msg):
         try:
