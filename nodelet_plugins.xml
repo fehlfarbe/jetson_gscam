@@ -1,0 +1,7 @@
+<library path="lib/libJetsonGSCam">
+    <class name="jetson_gscam/JetsonGSCam" type="jetson_gscam::JetsonGSCam" base_class_type="nodelet::Nodelet">
+        <description>
+            Jetson camera nodelet
+        </description>
+    </class>
+</library>
