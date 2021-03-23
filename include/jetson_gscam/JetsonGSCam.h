@@ -35,7 +35,7 @@ namespace jetson_gscam {
         uint32_t width;
         uint32_t height;
         uint32_t fps;
-        uint8_t  flip;
+        uint32_t  flip;
         std::string camera_info;
         std::string camera_name;
 

@@ -23,16 +23,16 @@ namespace jetson_gscam {
         camera_name = nh.param<std::string>("camera_info_url", "camera");
 
         // setup publisher
-        pub_raw = nh.advertise<sensor_msgs::Image>("image", 10);
-        pub_compressed = nh.advertise<sensor_msgs::CompressedImage>("compressed", 10);
+        pub_raw = nh.advertise<sensor_msgs::Image>("image", 1);
+        pub_compressed = nh.advertise<sensor_msgs::CompressedImage>("compressed", 1);
 
         // setup pipeline
         if (setupPipeline()) {
             startPipeline();
             // start publisher thread
             pub_thread = std::thread(&JetsonGSCam::publisher, this);
-            loop = g_main_loop_new (NULL, TRUE);
-            g_main_loop_run (loop);
+            //loop = g_main_loop_new (NULL, TRUE);
+            //g_main_loop_run (loop);
         } else {
             NODELET_ERROR("Cannot setup GStreamer pipeline...exit");
         }
@@ -47,6 +47,7 @@ namespace jetson_gscam {
             gst_object_unref(pipeline);
         }
 
+	NODELET_INFO("Stopping capture thread...");
         pub_thread_running = false;
         pub_thread.join();
     }
@@ -62,12 +63,12 @@ namespace jetson_gscam {
                 << "nvvidconv flip-method=" << flip << " ! "
                 << "video/x-raw(memory:NVMM),width=" << width << ",height=" << height <<",framerate=" << fps << "/1,format=NV12 ! "
                 << "nvjpegenc ! "
-                << "appsink name=\"jpeg_sink\" emit-signals=true "
+                << "appsink name=\"jpeg_sink\" emit-signals=true drop=true max-buffers=2 "
                 << "traw. ! queue ! nvtee ! nvvidconv flip-method=" << flip << " ! "
                 << "video/x-raw,width=" << width << ",height=" << height << ",framerate=" << fps << "/1,format=BGRx ! "
                 << "videoconvert ! "
                 << "video/x-raw,width=" << width << ",height=" << height << ",framerate=" << fps << "/1,format=BGR ! "
-                << "appsink name=\"raw_sink\" emit-signals=true";
+                << "appsink name=\"raw_sink\" emit-signals=true drop=true max-buffers=2";
 
 //        gst_cmd << "videotestsrc ! "
 //                << "tee name=traw traw. ! queue ! "
@@ -143,17 +144,17 @@ namespace jetson_gscam {
 
     void JetsonGSCam::publisher() {
         pub_thread_running = true;
-        auto r = ros::Rate(fps);
+	ros::Rate r(fps);
         uint64_t seq = 0;
-        while (pub_thread_running){
+        while (pub_thread_running && !ros::isShuttingDown()){
             NODELET_DEBUG_STREAM("Running..." << seq);
             bool got_sample = false;
             std_msgs::Header header;
             header.frame_id = camera_name;
             header.stamp = ros::Time::now();
             header.seq = seq;
-
-            if(sink_raw && pub_raw.getNumSubscribers() > 0){
+            
+	    if(sink_raw && pub_raw.getNumSubscribers() > 0){
                 GstSample *sample;
                 g_signal_emit_by_name (sink_raw, "pull-sample", &sample, NULL);
                 if(sample){
@@ -163,7 +164,7 @@ namespace jetson_gscam {
                     GstMapInfo info;
                     buffer = gst_sample_get_buffer (sample);
                     gst_buffer_map(buffer, &info, GST_MAP_READ);
-                    auto msg = sensor_msgs::Image();
+		    sensor_msgs::Image msg;
                     msg.header = header;
                     msg.width = width;
                     msg.height = height;
@@ -186,7 +187,7 @@ namespace jetson_gscam {
                     GstMapInfo info;
                     buffer = gst_sample_get_buffer (sample);
                     gst_buffer_map(buffer, &info, GST_MAP_READ);
-                    auto msg = sensor_msgs::CompressedImage();
+		    sensor_msgs::CompressedImage msg;
                     msg.header = header;
                     msg.format = "jpeg";
                     msg.data = std::vector<uint8_t>(info.data, info.data + info.size);
@@ -195,13 +196,10 @@ namespace jetson_gscam {
                     gst_sample_unref(sample);
                 }
             }
-
-            if(got_sample){
+            
+	    if(got_sample){
                 seq++;
             }
-
-            // pull sample
-//            auto sample = gst_app_sink_pull_sample (pipeline);
 
             r.sleep();
         }
