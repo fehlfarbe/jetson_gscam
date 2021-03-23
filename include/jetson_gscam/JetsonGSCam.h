@@ -11,6 +11,7 @@
 #include <gst/gst.h>
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
+#include <camera_info_manager/camera_info_manager.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CompressedImage.h>
 
@@ -36,7 +37,7 @@ namespace jetson_gscam {
         uint32_t height;
         uint32_t fps;
         uint32_t  flip;
-        std::string camera_info;
+        std::string camera_info_url;
         std::string camera_name;
 
         // publisher
@@ -44,6 +45,8 @@ namespace jetson_gscam {
         std::thread pub_thread;
         ros::Publisher pub_raw;
         ros::Publisher pub_compressed;
+        ros::Publisher pub_camera_info;
+        camera_info_manager::CameraInfoManager* camera_info_manager = nullptr;
 
         //Gst
         GstElement *pipeline = nullptr;

@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
         nodelet
         cv_bridge
         camera_info_manager_py
+        camera_info_manager
         )
 
 ## System dependencies are found with CMake's conventions
